@@ -37,6 +37,10 @@
 /// A view controller is able to control navigation bar's appearance by itself,
 /// rather than a global way, checking "fd_prefersNavigationBarHidden" property.
 /// Default to YES, disable it if you don't want so.
+/*
+ 视图控制器能够自行控制导航栏的外观，而不是一个全球性的方式，检查“fd_prefersNavigationBarHidden”属性
+ 默认为YES，禁用它，如果你不想让
+ */
 @property (nonatomic, assign) BOOL fd_viewControllerBasedNavigationBarAppearanceEnabled;
 
 @end
@@ -53,6 +57,7 @@
 /// Indicate this view controller prefers its navigation bar hidden or not,
 /// checked when view controller based navigation bar's appearance is enabled.
 /// Default to NO, bars are more likely to show.
+/// 默认是NO
 @property (nonatomic, assign) BOOL fd_prefersNavigationBarHidden;
 
 /// Max allowed initial distance to left edge when you begin the interactive pop

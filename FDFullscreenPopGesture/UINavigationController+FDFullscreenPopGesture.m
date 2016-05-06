@@ -22,7 +22,7 @@
 
 #import "UINavigationController+FDFullscreenPopGesture.h"
 #import <objc/runtime.h>
-
+/** 这个是处理自己添加到view中的手势识别器的代理 */
 @interface _FDFullscreenPopGestureRecognizerDelegate : NSObject <UIGestureRecognizerDelegate>
 
 @property (nonatomic, weak) UINavigationController *navigationController;
@@ -34,11 +34,14 @@
 - (BOOL)gestureRecognizerShouldBegin:(UIPanGestureRecognizer *)gestureRecognizer
 {
     // Ignore when no view controller is pushed into the navigation stack.
+    // 如果NavigationController只有一个控制器，即RootViewController
+    // 则不触发手势
     if (self.navigationController.viewControllers.count <= 1) {
         return NO;
     }
     
     // Ignore when the active view controller doesn't allow interactive pop.
+    // 如果当前控制器设置了不响应Pop手势，则不出发
     UIViewController *topViewController = self.navigationController.viewControllers.lastObject;
     if (topViewController.fd_interactivePopDisabled) {
         return NO;
@@ -50,8 +53,9 @@
     if (maxAllowedInitialDistance > 0 && beginningLocation.x > maxAllowedInitialDistance) {
         return NO;
     }
-
+    
     // Ignore pan gesture when the navigation controller is currently in transition.
+    // 私有变量标志transition动画是否正在进行
     if ([[self.navigationController valueForKey:@"_isTransitioning"] boolValue]) {
         return NO;
     }
@@ -67,6 +71,9 @@
 
 @end
 
+/**
+ *  这个blokc我觉的是用于控制器viewController出现或者隐藏时候的nav bar的显示或者隐藏
+ */
 typedef void (^_FDViewControllerWillAppearInjectBlock)(UIViewController *viewController, BOOL animated);
 
 @interface UIViewController (FDFullscreenPopGesturePrivate)
@@ -98,6 +105,7 @@ typedef void (^_FDViewControllerWillAppearInjectBlock)(UIViewController *viewCon
     });
 }
 
+/** 处理nav bar的过度 */
 - (void)fd_viewWillAppear:(BOOL)animated
 {
     // Forward to primary implementation.
@@ -144,25 +152,34 @@ typedef void (^_FDViewControllerWillAppearInjectBlock)(UIViewController *viewCon
     });
 }
 
+/**
+ *  Push方法
+ */
 - (void)fd_pushViewController:(UIViewController *)viewController animated:(BOOL)animated
 {
     if (![self.interactivePopGestureRecognizer.view.gestureRecognizers containsObject:self.fd_fullscreenPopGestureRecognizer]) {
         
         // Add our own gesture recognizer to where the onboard screen edge pan gesture recognizer is attached to.
+        // 添加我们的手势到屏幕边缘
         [self.interactivePopGestureRecognizer.view addGestureRecognizer:self.fd_fullscreenPopGestureRecognizer];
-
+        
         // Forward the gesture events to the private handler of the onboard gesture recognizer.
+        //请看http://www.jianshu.com/p/d39f7d22db6c
         NSArray *internalTargets = [self.interactivePopGestureRecognizer valueForKey:@"targets"];
         id internalTarget = [internalTargets.firstObject valueForKey:@"target"];
         SEL internalAction = NSSelectorFromString(@"handleNavigationTransition:");
+        // 设置代理，这个代理....现在还不知道
         self.fd_fullscreenPopGestureRecognizer.delegate = self.fd_popGestureRecognizerDelegate;
+        // 为我们的手势添加方法
         [self.fd_fullscreenPopGestureRecognizer addTarget:internalTarget action:internalAction];
-
+        
         // Disable the onboard gesture recognizer.
+        // 不要系统的识别手势
         self.interactivePopGestureRecognizer.enabled = NO;
     }
     
     // Handle perferred navigation bar appearance.
+    // 处理nav bar
     [self fd_setupViewControllerBasedNavigationBarAppearanceIfNeeded:viewController];
     
     // Forward to primary implementation.
@@ -181,6 +198,7 @@ typedef void (^_FDViewControllerWillAppearInjectBlock)(UIViewController *viewCon
     _FDViewControllerWillAppearInjectBlock block = ^(UIViewController *viewController, BOOL animated) {
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (strongSelf) {
+            // 处理改控制器导航栏的动态显示和隐藏
             [strongSelf setNavigationBarHidden:viewController.fd_prefersNavigationBarHidden animated:animated];
         }
     };
@@ -188,17 +206,21 @@ typedef void (^_FDViewControllerWillAppearInjectBlock)(UIViewController *viewCon
     // Setup will appear inject block to appearing view controller.
     // Setup disappearing view controller as well, because not every view controller is added into
     // stack by pushing, maybe by "-setViewControllers:".
+    // 设置这个要显示的控制器的will appear方法的的block
     appearingViewController.fd_willAppearInjectBlock = block;
+    
+    // 同时为上一个控制器设置block
     UIViewController *disappearingViewController = self.viewControllers.lastObject;
     if (disappearingViewController && !disappearingViewController.fd_willAppearInjectBlock) {
         disappearingViewController.fd_willAppearInjectBlock = block;
     }
 }
 
+/** 获取我们自己的手势识别器的代理对象 */
 - (_FDFullscreenPopGestureRecognizerDelegate *)fd_popGestureRecognizerDelegate
 {
     _FDFullscreenPopGestureRecognizerDelegate *delegate = objc_getAssociatedObject(self, _cmd);
-
+    
     if (!delegate) {
         delegate = [[_FDFullscreenPopGestureRecognizerDelegate alloc] init];
         delegate.navigationController = self;
@@ -208,10 +230,11 @@ typedef void (^_FDViewControllerWillAppearInjectBlock)(UIViewController *viewCon
     return delegate;
 }
 
+/** 这是我们自己的pop手势 */
 - (UIPanGestureRecognizer *)fd_fullscreenPopGestureRecognizer
 {
     UIPanGestureRecognizer *panGestureRecognizer = objc_getAssociatedObject(self, _cmd);
-
+    
     if (!panGestureRecognizer) {
         panGestureRecognizer = [[UIPanGestureRecognizer alloc] init];
         panGestureRecognizer.maximumNumberOfTouches = 1;
@@ -227,6 +250,7 @@ typedef void (^_FDViewControllerWillAppearInjectBlock)(UIViewController *viewCon
     if (number) {
         return number.boolValue;
     }
+    /** 默认是YES */
     self.fd_viewControllerBasedNavigationBarAppearanceEnabled = YES;
     return YES;
 }
