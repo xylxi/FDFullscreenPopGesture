@@ -61,6 +61,7 @@
     }
     
     // Prevent calling the handler when the gesture begins in an opposite direction.
+    // 确保是向右滑动手势
     CGPoint translation = [gestureRecognizer translationInView:gestureRecognizer.view];
     if (translation.x <= 0) {
         return NO;
